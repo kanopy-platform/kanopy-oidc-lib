@@ -87,7 +87,7 @@ const oidcConfigErrorMessage = `No configuration found.
 You need to set up kubeconfig files and KUBECONFIG environment variable.
 Run:
 
-	kanopy-oidc oidc-login setup
+	kanopy-oidc kube setup
 
 `
 

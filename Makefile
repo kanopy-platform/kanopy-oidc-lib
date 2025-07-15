@@ -1,5 +1,5 @@
 GO_MODULE := $(shell git config --get remote.origin.url | grep -o 'github\.com[:/][^.]*' | tr ':' '/')
-CMD_NAME := kanopy-oidc-pkg
+CMD_NAME := kanopy-oidc-lib
 GIT_COMMIT := $(shell git rev-parse HEAD)
 VERSION ?= dirty
 
