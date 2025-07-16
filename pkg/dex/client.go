@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -353,6 +354,43 @@ func NewClient(opts ...ClientOption) (*Client, error) {
 	}
 
 	return c, nil
+}
+
+func NewClientGetToken(opts ...ClientOption) (*oauth2.Token, error) {
+	client, err := NewClient(opts...)
+	if err != nil {
+		return nil, err
+	}
+	defer client.Close() // nolint: errcheck
+
+	tok, err := client.Token()
+	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			return nil, nil
+		}
+
+		log.Warn("error getting token ", err)
+
+		details, retrieveErr := ErrorToRetrieveError(err)
+		if retrieveErr == nil && details.Error == "invalid_request" && strings.Contains(details.ErrorDescription, "Refresh token") {
+			// Delete the token file, and retry.
+			if deleteErr := client.DeleteToken(); deleteErr != nil {
+				return nil, fmt.Errorf("%w: %w", err, deleteErr)
+			}
+
+			tok, err = client.Token()
+			if err != nil {
+				if errors.Is(err, context.Canceled) {
+					return nil, nil
+				}
+				return nil, err
+			}
+		} else {
+			return nil, err
+		}
+	}
+
+	return tok, nil
 }
 
 func (c *Client) tokenFilePath() string {
