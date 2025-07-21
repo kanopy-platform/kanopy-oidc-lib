@@ -3,35 +3,39 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
-	"os"
-	"os/signal"
-	"syscall"
+	"net/http"
 
+	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/kanopy-platform/kanopy-oidc-lib/pkg/dex"
 )
 
 func main() {
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
+	kindDemoURL := "https://dex.example.com"
 
-	demoURL := "https://dex.example.com"
+	// this is for demonstration purposes only right now
+	hc := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: true, // test server certificate is not trusted.
+			},
+		},
+	}
+	ctx := oidc.ClientContext(context.Background(), hc)
 
-	// The example below won't work, requires real values
-	token, err := dex.NewClientGetToken(
-		dex.WithConnectorID("mockcallback"),
-		dex.WithIssuer(demoURL),
-		dex.WithClientID("mocksecure"),
-		dex.WithSecret("hijklmnop"),
-		dex.WithContext(ctx),
-	)
+	client, err := dex.NewClient(dex.WithConnectorID("mockcallback"), dex.WithIssuer(kindDemoURL), dex.WithClientID("mocksecure"), dex.WithSecret("hijklmnop"), dex.WithContext(ctx))
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	defer client.Close()
+
+	tok, err := client.Token()
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
-	if token != nil {
-		// There are context cancelled scenarios where the token may be nil.
-		fmt.Println(token.AccessToken)
-	}
+	fmt.Println(tok)
 }
