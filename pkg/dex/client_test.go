@@ -418,7 +418,7 @@ func TestTokenPrefix(t *testing.T) {
 	c := setupTestClient(t)
 	c.tokenPrefix = "test"
 	defer c.Close()
-	assert.Contains(t, c.tokenFilePath(), "test-token-clientID.json")
+	assert.Contains(t, c.TokenFilePath(), "test-token-clientID.json")
 }
 
 func TestTokenInMemoryInValidFlow(t *testing.T) {
