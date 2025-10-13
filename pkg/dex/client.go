@@ -355,7 +355,7 @@ func NewClient(opts ...ClientOption) (*Client, error) {
 	return c, nil
 }
 
-func (c *Client) tokenFilePath() string {
+func (c *Client) TokenFilePath() string {
 	prefix := ""
 	if c.tokenPrefix != "" {
 		prefix = c.tokenPrefix + "-"
@@ -365,16 +365,16 @@ func (c *Client) tokenFilePath() string {
 
 // LoadToken reads a token and claims a write lock
 func (c *Client) LoadToken() (*oauth2.Token, error) {
-	return c.tokenLoader.LoadToken(c.tokenFilePath())
+	return c.tokenLoader.LoadToken(c.TokenFilePath())
 }
 
 // WriteToken writes the token to the token path and releases the write lock
 func (c *Client) WriteToken() error {
-	return c.tokenLoader.SaveToken(c.tokenFilePath(), c.token)
+	return c.tokenLoader.SaveToken(c.TokenFilePath(), c.token)
 }
 
 func (c *Client) DeleteToken() error {
-	return c.tokenLoader.DeleteToken(c.tokenFilePath())
+	return c.tokenLoader.DeleteToken(c.TokenFilePath())
 }
 
 func (c *Client) Verifier() string {
