@@ -327,7 +327,7 @@ func NewClient(opts ...ClientOption) (*Client, error) {
 		c.config.Scopes = append(c.config.Scopes, "offline_access")
 	}
 
-	c.config.RedirectURL = fmt.Sprintf("http://localhost:%s/", c.port)
+	c.config.RedirectURL = fmt.Sprintf("http://127.0.0.1:%s/", c.port)
 	if c.clientID != "" {
 		c.config.ClientID = c.clientID
 	}

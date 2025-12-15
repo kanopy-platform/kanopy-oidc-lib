@@ -90,7 +90,7 @@ func TestClientOptions(t *testing.T) {
 			expected: oauth2.Config{
 				ClientID:    "clientID",
 				Endpoint:    defaultEndpoint,
-				RedirectURL: "http://localhost:8888/",
+				RedirectURL: "http://127.0.0.1:8888/",
 				Scopes:      defaultScopes,
 			},
 			options: []ClientOption{
@@ -103,7 +103,7 @@ func TestClientOptions(t *testing.T) {
 			expected: oauth2.Config{
 				ClientID:    "clientID",
 				Endpoint:    defaultEndpoint,
-				RedirectURL: "http://localhost:1337/",
+				RedirectURL: "http://127.0.0.1:1337/",
 				Scopes:      defaultScopes,
 			},
 			options: []ClientOption{
@@ -117,7 +117,7 @@ func TestClientOptions(t *testing.T) {
 			expected: oauth2.Config{
 				ClientID:    "clientID",
 				Endpoint:    defaultEndpoint,
-				RedirectURL: "http://localhost:8888/",
+				RedirectURL: "http://127.0.0.1:8888/",
 				Scopes:      append(defaultScopes, "offline_access"),
 			},
 			options: []ClientOption{
@@ -132,7 +132,7 @@ func TestClientOptions(t *testing.T) {
 				ClientID:     "clientID",
 				ClientSecret: "abcedfg",
 				Endpoint:     defaultEndpoint,
-				RedirectURL:  "http://localhost:8888/",
+				RedirectURL:  "http://127.0.0.1:8888/",
 				Scopes:       defaultScopes,
 			},
 			options: []ClientOption{
@@ -150,7 +150,7 @@ func TestClientOptions(t *testing.T) {
 					TokenURL:      fmt.Sprintf("%s/token", ts.URL),
 					DeviceAuthURL: fmt.Sprintf("%s/device/code", ts.URL),
 				},
-				RedirectURL: "http://localhost:8888/",
+				RedirectURL: "http://127.0.0.1:8888/",
 				Scopes:      defaultScopes,
 			},
 			options: []ClientOption{
@@ -255,22 +255,22 @@ func TestCallbackHandlerRedirectHandler(t *testing.T) {
 	}{
 		"empty": {
 			err: true,
-			req: httptest.NewRequest("GET", "http://localhost:8888/", nil),
+			req: httptest.NewRequest("GET", "http://127.0.0.1:8888/", nil),
 		},
 		"missingCode": {
-			req: httptest.NewRequest("GET", fmt.Sprintf("http://localhost:8888/?state=%s", c.state), nil),
+			req: httptest.NewRequest("GET", fmt.Sprintf("http://127.0.0.1:8888/?state=%s", c.state), nil),
 			err: true,
 		},
 		"missingState": {
-			req: httptest.NewRequest("GET", fmt.Sprintf("http://localhost:8888/?code=%s", code), nil),
+			req: httptest.NewRequest("GET", fmt.Sprintf("http://127.0.0.1:8888/?code=%s", code), nil),
 			err: true,
 		},
 		"invalidState": {
-			req: httptest.NewRequest("GET", fmt.Sprintf("http://localhost:8888/?state=boomboom&code=%s", code), nil),
+			req: httptest.NewRequest("GET", fmt.Sprintf("http://127.0.0.1:8888/?state=boomboom&code=%s", code), nil),
 			err: true,
 		},
 		"validRequest": {
-			req: httptest.NewRequest("GET", fmt.Sprintf("http://localhost:8888/?state=%s&code=%s", c.state, code), nil),
+			req: httptest.NewRequest("GET", fmt.Sprintf("http://127.0.0.1:8888/?state=%s&code=%s", c.state, code), nil),
 		},
 	}
 
