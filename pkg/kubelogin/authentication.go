@@ -24,7 +24,7 @@ func (o *AuthenticationOptions) GrantOptionSet() authentication.GrantOptionSet {
 			SkipOpenBrowser:       o.SkipOpenBrowser,
 			BrowserCommand:        o.BrowserCommand,
 			AuthenticationTimeout: time.Duration(o.AuthenticationTimeoutSec) * time.Second,
-			RedirectURLHostname:   "localhost",
+			RedirectURLHostname:   "127.0.0.1",
 		},
 	}
 }
