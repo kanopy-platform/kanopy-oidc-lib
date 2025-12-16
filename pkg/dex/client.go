@@ -27,6 +27,12 @@ type Client struct {
 	token       *oauth2.Token
 	flow        string
 	noBrowser   bool
+	// fallbackToStdOut indicates that the client should
+	// print instructions to stdout alongside attempting
+	// to open a browser. If the browser open fails, the
+	// instructions will still be printed and the workflow
+	// can be completed manually.
+	fallbackToStdOut bool
 	//this long list of fields has a code smell to it
 	//this block should probably abstracted into a struct
 	//with its own constructor that is an argument to the
@@ -297,6 +303,12 @@ func WithNoBrowser(noBrowser bool) ClientOption {
 	}
 }
 
+func WithFallbackToStdOut(fallbackToStdOut bool) ClientOption {
+	return func(c *Client) {
+		c.fallbackToStdOut = fallbackToStdOut
+	}
+}
+
 func NewClient(opts ...ClientOption) (*Client, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -406,19 +418,25 @@ func (c *Client) deviceFlow() (*oauth2.Token, error) {
 		return nil, err
 	}
 
-	if c.noBrowser {
+	if c.fallbackToStdOut || c.noBrowser {
 		fmt.Println("navigate to the verification URI to complete device auth flow")
 		fmt.Println("code: ", resp.UserCode)
 		fmt.Println("uri: ", resp.VerificationURIComplete)
-	} else {
+	}
+	if !c.noBrowser {
 		browserCmd, err := openBrowserCommand(resp.VerificationURIComplete)
 		if err != nil {
-			return nil, err
-		}
-
-		err = browserCmd.Start()
-		if err != nil {
-			return nil, err
+			if c.fallbackToStdOut {
+				log.Debugf("failed to create browser command: %v", err)
+			} else {
+				return nil, err
+			}
+		} else if err = browserCmd.Start(); err != nil {
+			if c.fallbackToStdOut {
+				log.Debugf("failed to start browser: %v", err)
+			} else {
+				return nil, err
+			}
 		}
 	}
 
