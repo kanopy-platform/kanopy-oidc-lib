@@ -425,10 +425,8 @@ func (c *Client) deviceFlow() (*oauth2.Token, error) {
 		if err := openBrowser(resp.VerificationURIComplete); err != nil {
 			log.Debugf("failed to open browser: %v", err)
 		}
-	} else {
-		if err := openBrowser(resp.VerificationURIComplete); err != nil {
-			return nil, err
-		}
+	} else if err := openBrowser(resp.VerificationURIComplete); err != nil {
+		return nil, err
 	}
 
 	token, err := c.config.DeviceAccessToken(c.ctx, resp, oauth2.VerifierOption(c.verifier))
@@ -720,9 +718,5 @@ func openBrowser(uri string) error {
 		return err
 	}
 
-	err = browserCmd.Start()
-	if err != nil {
-		return err
-	}
-	return nil
+	return browserCmd.Start()
 }
