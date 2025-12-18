@@ -418,25 +418,16 @@ func (c *Client) deviceFlow() (*oauth2.Token, error) {
 		return nil, err
 	}
 
-	if c.fallbackToStdOut || c.noBrowser {
-		fmt.Println("navigate to the verification URI to complete device auth flow")
-		fmt.Println("code: ", resp.UserCode)
-		fmt.Println("uri: ", resp.VerificationURIComplete)
-	}
-	if !c.noBrowser {
-		browserCmd, err := openBrowserCommand(resp.VerificationURIComplete)
-		if err != nil {
-			if c.fallbackToStdOut {
-				log.Debugf("failed to create browser command: %v", err)
-			} else {
-				return nil, err
-			}
-		} else if err = browserCmd.Start(); err != nil {
-			if c.fallbackToStdOut {
-				log.Debugf("failed to start browser: %v", err)
-			} else {
-				return nil, err
-			}
+	if c.noBrowser {
+		printVerificationURI(resp.VerificationURIComplete, resp.UserCode)
+	} else if c.fallbackToStdOut {
+		printVerificationURI(resp.VerificationURIComplete, resp.UserCode)
+		if err := openBrowser(resp.VerificationURIComplete); err != nil {
+			log.Debugf("failed to open browser: %v", err)
+		}
+	} else {
+		if err := openBrowser(resp.VerificationURIComplete); err != nil {
+			return nil, err
 		}
 	}
 
@@ -716,3 +707,22 @@ const RESPONSESTRING string = `<html><head>
 	<p>This window can be closed.</p>
     </div>
 </body></html>`
+
+func printVerificationURI(uri, code string) {
+	fmt.Println("navigate to the verification URI to complete device auth flow")
+	fmt.Println("code: ", code)
+	fmt.Println("uri: ", uri)
+}
+
+func openBrowser(uri string) error {
+	browserCmd, err := openBrowserCommand(uri)
+	if err != nil {
+		return err
+	}
+
+	err = browserCmd.Start()
+	if err != nil {
+		return err
+	}
+	return nil
+}
