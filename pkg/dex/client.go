@@ -27,6 +27,12 @@ type Client struct {
 	token       *oauth2.Token
 	flow        string
 	noBrowser   bool
+	// fallbackToStdOut indicates that the client should
+	// print instructions to stdout alongside attempting
+	// to open a browser. If the browser open fails, the
+	// instructions will still be printed and the workflow
+	// can be completed manually.
+	fallbackToStdOut bool
 	//this long list of fields has a code smell to it
 	//this block should probably abstracted into a struct
 	//with its own constructor that is an argument to the
@@ -297,6 +303,12 @@ func WithNoBrowser(noBrowser bool) ClientOption {
 	}
 }
 
+func WithFallbackToStdOut(fallbackToStdOut bool) ClientOption {
+	return func(c *Client) {
+		c.fallbackToStdOut = fallbackToStdOut
+	}
+}
+
 func NewClient(opts ...ClientOption) (*Client, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -407,19 +419,14 @@ func (c *Client) deviceFlow() (*oauth2.Token, error) {
 	}
 
 	if c.noBrowser {
-		fmt.Println("navigate to the verification URI to complete device auth flow")
-		fmt.Println("code: ", resp.UserCode)
-		fmt.Println("uri: ", resp.VerificationURIComplete)
-	} else {
-		browserCmd, err := openBrowserCommand(resp.VerificationURIComplete)
-		if err != nil {
-			return nil, err
+		printVerificationURI(resp.VerificationURIComplete, resp.UserCode)
+	} else if c.fallbackToStdOut {
+		printVerificationURI(resp.VerificationURIComplete, resp.UserCode)
+		if err := openBrowser(resp.VerificationURIComplete); err != nil {
+			log.Debugf("failed to open browser: %v", err)
 		}
-
-		err = browserCmd.Start()
-		if err != nil {
-			return nil, err
-		}
+	} else if err := openBrowser(resp.VerificationURIComplete); err != nil {
+		return nil, err
 	}
 
 	token, err := c.config.DeviceAccessToken(c.ctx, resp, oauth2.VerifierOption(c.verifier))
@@ -698,3 +705,18 @@ const RESPONSESTRING string = `<html><head>
 	<p>This window can be closed.</p>
     </div>
 </body></html>`
+
+func printVerificationURI(uri, code string) {
+	fmt.Println("navigate to the verification URI to complete device auth flow")
+	fmt.Println("code: ", code)
+	fmt.Println("uri: ", uri)
+}
+
+func openBrowser(uri string) error {
+	browserCmd, err := openBrowserCommand(uri)
+	if err != nil {
+		return err
+	}
+
+	return browserCmd.Start()
+}
