@@ -6,5 +6,3 @@ Golang libraries for authenticating with Kanopy.
 
 This public repository is meant to be consumed by user applications who want to use these libraries to authenticate with Kanopy.
 
-> [!NOTE]
-> There is a separate private repo that releases the `kanopy-oidc` CLI, that end users can download. Please see kanopy docs for installation and setup.
