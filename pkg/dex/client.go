@@ -19,14 +19,15 @@ import (
 )
 
 type Client struct {
-	ctx         context.Context
-	issuer      string
-	port        string
-	config      oauth2.Config
-	tokenLoader TokenLoader
-	token       *oauth2.Token
-	flow        string
-	noBrowser   bool
+	ctx               context.Context
+	issuer            string
+	port              string
+	config            oauth2.Config
+	tokenLoader       TokenLoader
+	token             *oauth2.Token
+	flow              string
+	noBrowser         bool
+	tokenExpiryBuffer time.Duration
 	// fallbackToStdOut indicates that the client should
 	// print instructions to stdout alongside attempting
 	// to open a browser. If the browser open fails, the
@@ -279,6 +280,16 @@ func WithRefresh() ClientOption {
 	}
 }
 
+// WithTokenExpiryBuffer treats cached tokens expiring within buffer as invalid.
+func WithTokenExpiryBuffer(buffer time.Duration) ClientOption {
+	return func(c *Client) {
+		if buffer < 0 {
+			buffer = 0
+		}
+		c.tokenExpiryBuffer = buffer
+	}
+}
+
 func WithTokenLoader(loader TokenLoader) ClientOption {
 	return func(c *Client) {
 		c.tokenLoader = loader
@@ -449,7 +460,7 @@ func (c *Client) Token() (*oauth2.Token, error) {
 
 	// load token from memory
 	if c.token != nil {
-		if c.token.Valid() {
+		if c.tokenValid(c.token) {
 			return c.token, nil
 		}
 		if c.token.RefreshToken != "" {
@@ -461,7 +472,7 @@ func (c *Client) Token() (*oauth2.Token, error) {
 	// load token from token loader
 	tok, err := c.LoadToken()
 	if tok != nil {
-		if tok.Valid() {
+		if c.tokenValid(tok) {
 			c.token = tok
 			return tok, nil
 		}
@@ -512,6 +523,13 @@ func (c *Client) Token() (*oauth2.Token, error) {
 	return c.token, nil
 }
 
+func (c *Client) tokenValid(tok *oauth2.Token) bool {
+	if valid := tok.Valid(); !valid || c.tokenExpiryBuffer <= 0 {
+		return valid
+	}
+	return tok.Expiry.After(time.Now().Add(c.tokenExpiryBuffer))
+}
+
 func (c *Client) authCodeFlow() (*oauth2.Token, error) {
 	// Start browser flow
 	err := c.startCallbackHandler()
@@ -547,7 +565,9 @@ func (c *Client) authCodeFlow() (*oauth2.Token, error) {
 }
 
 func (c *Client) refreshToken(tok *oauth2.Token) (*oauth2.Token, error) {
-	ntok, err := c.config.TokenSource(c.ctx, tok).Token()
+	staleTok := *tok
+	staleTok.AccessToken = ""
+	ntok, err := c.config.TokenSource(c.ctx, &staleTok).Token()
 	if ntok != nil && err == nil {
 		c.token = ntok
 		return ntok, nil
