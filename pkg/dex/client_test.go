@@ -436,6 +436,84 @@ func TestTokenInMemoryInValidFlow(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestTokenWithTokenExpiryBuffer(t *testing.T) {
+	t.Run("default behavior returns valid cached token", func(t *testing.T) {
+		c := newTokenTestClient(t, nil)
+		c.token = &oauth2.Token{
+			AccessToken: "cached",
+			TokenType:   "bearer",
+			Expiry:      time.Now().Add(30 * time.Second),
+		}
+
+		tok, err := c.Token()
+		require.NoError(t, err)
+		require.Same(t, c.token, tok)
+		assert.Equal(t, "cached", tok.AccessToken)
+	})
+
+	t.Run("buffer refreshes token expiring within buffer", func(t *testing.T) {
+		requests := 0
+		c := newTokenTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+			requests++
+			w.Header().Set("Content-Type", "application/json")
+			_, err := w.Write([]byte(`{"access_token":"refreshed","token_type":"bearer","expires_in":3600}`))
+			require.NoError(t, err)
+		}, WithTokenExpiryBuffer(time.Minute))
+		c.token = &oauth2.Token{
+			AccessToken:  "cached",
+			RefreshToken: "refresh",
+			TokenType:    "bearer",
+			Expiry:       time.Now().Add(30 * time.Second),
+		}
+
+		tok, err := c.Token()
+		require.NoError(t, err)
+		assert.Equal(t, 1, requests)
+		assert.Equal(t, "refreshed", tok.AccessToken)
+		assert.Same(t, c.token, tok)
+	})
+
+	t.Run("buffer returns token expiring after buffer", func(t *testing.T) {
+		c := newTokenTestClient(t, nil, WithTokenExpiryBuffer(time.Minute))
+		c.token = &oauth2.Token{
+			AccessToken:  "cached",
+			RefreshToken: "refresh",
+			TokenType:    "bearer",
+			Expiry:       time.Now().Add(2 * time.Minute),
+		}
+
+		tok, err := c.Token()
+		require.NoError(t, err)
+		require.Same(t, c.token, tok)
+		assert.Equal(t, "cached", tok.AccessToken)
+	})
+
+	t.Run("buffered token without refresh token falls through", func(t *testing.T) {
+		c := newTokenTestClient(t, nil, WithTokenExpiryBuffer(time.Minute), WithFlow("invalid"))
+		c.token = &oauth2.Token{
+			AccessToken: "cached",
+			TokenType:   "bearer",
+			Expiry:      time.Now().Add(30 * time.Second),
+		}
+
+		tok, err := c.Token()
+		require.Error(t, err)
+		assert.Nil(t, tok)
+		assert.Contains(t, err.Error(), "invalid flow")
+	})
+}
+
+func TestWithTokenExpiryBufferClampsNegative(t *testing.T) {
+	c := &Client{}
+	WithTokenExpiryBuffer(-time.Minute)(c)
+	assert.Zero(t, c.tokenExpiryBuffer)
+	assert.True(t, c.tokenValid(&oauth2.Token{
+		AccessToken: "cached",
+		TokenType:   "bearer",
+		Expiry:      time.Now().Add(30 * time.Second),
+	}))
+}
+
 func setupTestClient(t *testing.T) *Client {
 	config := oauth2.Config{
 		ClientID: "clientID",
@@ -469,6 +547,32 @@ func setupTestClient(t *testing.T) *Client {
 	go func() {
 		c.code <- "1234"
 	}()
+	return c
+}
+
+func newTokenTestClient(t *testing.T, tokenHandler http.HandlerFunc, opts ...ClientOption) *Client {
+	t.Helper()
+
+	if tokenHandler == nil {
+		tokenHandler = func(w http.ResponseWriter, r *http.Request) {
+			t.Fatal("unexpected token endpoint request")
+		}
+	}
+	ts := httptest.NewServer(tokenHandler)
+	t.Cleanup(ts.Close)
+
+	config := oauth2.Config{
+		ClientID: "clientID",
+		Endpoint: oauth2.Endpoint{
+			TokenURL: ts.URL,
+			AuthURL:  "https://example.com/auth",
+		},
+	}
+
+	allOpts := []ClientOption{WithIssuer(""), WithClientID("clientID"), WithConfig(config)}
+	allOpts = append(allOpts, opts...)
+	c, err := NewClient(allOpts...)
+	require.NoError(t, err)
 	return c
 }
 
