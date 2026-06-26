@@ -527,6 +527,9 @@ func (c *Client) tokenValid(tok *oauth2.Token) bool {
 	if valid := tok.Valid(); !valid || c.tokenExpiryBuffer <= 0 {
 		return valid
 	}
+	if tok.Expiry.IsZero() {
+		return true
+	}
 	return tok.Expiry.After(time.Now().Add(c.tokenExpiryBuffer))
 }
 
